@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace BenigaImageProcessing1
+namespace BenigaDIP
 {
     internal static class Program
     {

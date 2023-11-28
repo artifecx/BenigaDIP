@@ -10,29 +10,87 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace BenigaImageProcessing1
+namespace BenigaDIP
 {
     public partial class Form1 : Form
     {
         private ToolStripMenuItem selectedManipulateMenuItem;
         private PictureBox sourcePictureBox;
         private HistogramForm histogramForm;
+        private bool isExpanded;
+        private Color colorPick;
+        private Bitmap imageA, imageB, resultImage;
+        private int threshold;
 
         public Form1()
         {
             InitializeComponent();
             InitializeMenu();
+            HidePart2();
+
+            tbThreshold.Text = "100";
+            threshold = int.Parse(tbThreshold.Text);
         }
 
         private void InitializeMenu()
         {
-            // Initialize controls to set the selected picturebox to be manipulated by the operations
-            // Default is to manipulate loaded image
             selectedManipulateMenuItem = menuManipulateOriginal;
             selectedManipulateMenuItem.Checked = true;
 
             menuManipulateOutput.Click += menuManipulateItem_Click;
             menuManipulateOriginal.Click += menuManipulateItem_Click;
+        }
+
+        private void HidePart2()
+        {
+            isExpanded = false;
+            this.Size = new System.Drawing.Size(845, 510);
+            ClearPictureBoxes();
+
+            menuManipulate.Visible = true;
+            menuControls.Visible = true;
+            menuFileLoad.Visible = true;
+
+            btnPart2.Text = ">>";
+            btnPart2.Location = new Point(768, 441);
+            
+            btnLoadImg.Hide();
+            lblColorPicker.Hide();
+            btnLoadBg.Hide();
+            btnSubtract.Hide();
+
+            pbColor.Hide();
+            pbColor.BackColor = Control.DefaultBackColor;
+            pbSubtractOutput.Hide();
+
+            lblThreshold.Hide();
+            tbThreshold.Hide();
+        }
+
+        private void ShowPart2()
+        {
+            isExpanded = true;
+            this.Size = new System.Drawing.Size(1250, 510);
+            ClearPictureBoxes();
+
+            menuManipulate.Visible = false;
+            menuControls.Visible = false;
+            menuFileLoad.Visible = false;
+
+            btnPart2.Text = "<<";
+            btnPart2.Location = new Point(1174, 441);
+
+            btnLoadImg.Show();
+            lblColorPicker.Show();
+            btnLoadBg.Show();
+            btnSubtract.Show();
+
+            pbColor.Show();
+            pbColor.BackColor = Control.DefaultBackColor;
+            pbSubtractOutput.Show();
+
+            lblThreshold.Show();
+            tbThreshold.Show();
         }
 
         private void menuManipulateItem_Click(object sender, EventArgs e)
@@ -50,18 +108,28 @@ namespace BenigaImageProcessing1
 
         private void menuFileNew_Click(object sender, EventArgs e)
         {
+            ClearPictureBoxes();
+
+            if (!isExpanded)
+            {
+                LoadImage(0);
+            }
+        }
+
+        private void ClearPictureBoxes()
+        {
             pbOriginal.Image = null;
             pbOutput.Image = null;
-
-            LoadImage();
+            pbSubtractOutput.Image = null;
+            pbColor.Image = null;
         }
 
         private void menuFileLoad_Click(object sender, EventArgs e)
         {
-            LoadImage();
+            LoadImage(0);
         }
 
-        public void LoadImage()
+        public void LoadImage(int type)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Image Files|*.bmp;*.jpg;*.jpeg;*.png;*.gif|All Files|*.*";
@@ -74,14 +142,35 @@ namespace BenigaImageProcessing1
 
                     if (IsValidImage(selectedFileName))
                     {
-                        // Load the image into the PictureBox
-                        pbOriginal.Image = Image.FromFile(selectedFileName);
+                        if (type == 0 || type == 1)
+                        {
+                            pbOriginal.Image = Image.FromFile(selectedFileName);
 
-                        // Fit the image in the PictureBox
-                        pbOriginal.SizeMode = PictureBoxSizeMode.Zoom;
+                            pbOriginal.SizeMode = PictureBoxSizeMode.Zoom;
 
-                        // Clear output image if it exists
-                        pbOutput.Image = null;
+                            if(type == 0)
+                            {
+                                pbOutput.Image = null;
+                            }
+                            else
+                            {
+                                imageA = new Bitmap(pbOriginal.Image);
+                                pbSubtractOutput.Image = null;
+                            }
+                        } 
+                        else
+                        {
+                            pbOutput.Image = Image.FromFile(selectedFileName);
+                            pbOutput.SizeMode = PictureBoxSizeMode.Zoom;
+                            imageB = new Bitmap(pbOutput.Image);
+                            pbSubtractOutput.Image = null;
+                        }
+
+                        if (isExpanded && pbColor.BackColor == Control.DefaultBackColor)
+                        {
+                            colorPick = Color.FromArgb(0, 255, 0);
+                            pbColor.BackColor = colorPick;
+                        }
                     }
                     else
                     {
@@ -99,7 +188,6 @@ namespace BenigaImageProcessing1
         {
             try
             {
-                // Check if the file is a valid image format
                 using (Image img = Image.FromFile(filePath))
                 {
                     return true;
@@ -113,7 +201,9 @@ namespace BenigaImageProcessing1
 
         private void menuFileSave_Click(object sender, EventArgs e)
         {
-            if (pbOutput.Image != null)
+            PictureBox sourcePB = isExpanded ? pbSubtractOutput : pbOutput;
+
+            if (sourcePB.Image != null)
             {
                 SaveFileDialog saveFileDialog = new SaveFileDialog();
                 saveFileDialog.Filter = "PNG Image|*.png|JPEG Image|*.jpg;*.jpeg|Bitmap Image|*.bmp|GIF Image|*.gif|All Files|*.*";
@@ -123,8 +213,7 @@ namespace BenigaImageProcessing1
                 {
                     try
                     {
-                        // Save the image to the selected file format
-                        pbOutput.Image.Save(saveFileDialog.FileName);
+                        sourcePB.Image.Save(saveFileDialog.FileName);
                         MessageBox.Show("Image saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
@@ -157,7 +246,6 @@ namespace BenigaImageProcessing1
 
         private void SetSourcePictureBox()
         {
-            // Check the selectedManipulateMenuItem to determine the source PictureBox
             if (selectedManipulateMenuItem == menuManipulateOriginal)
             {
                 sourcePictureBox = pbOriginal;
@@ -190,10 +278,8 @@ namespace BenigaImageProcessing1
         {
             Bitmap grayscaleImage = new Bitmap(originalImage.Width, originalImage.Height);
 
-            // Create a Graphics object to draw on the new image
             using (Graphics g = Graphics.FromImage(grayscaleImage))
             {
-                // Create a ColorMatrix to apply the greyscale filter
                 ColorMatrix colorMatrix = new ColorMatrix(
                     new float[][]
                     {
@@ -204,12 +290,10 @@ namespace BenigaImageProcessing1
                         new float[] { 0, 0, 0, 0, 1 }
                     });
 
-                // Create an ImageAttributes object and set its color matrix
                 using (ImageAttributes attributes = new ImageAttributes())
                 {
                     attributes.SetColorMatrix(colorMatrix);
 
-                    // Draw the original image with the greyscale filter applied
                     g.DrawImage(originalImage, new Rectangle(0, 0, grayscaleImage.Width, grayscaleImage.Height), 0, 0, originalImage.Width, originalImage.Height, GraphicsUnit.Pixel, attributes);
                 }
             }
@@ -280,41 +364,32 @@ namespace BenigaImageProcessing1
         {
             Bitmap bitmap = new Bitmap(image);
 
-            // Initialize an array to store histogram data (256 bins for 8-bit grayscale)
             int[] histogram = new int[256];
 
-            // Get the pixel data from the image
             BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
 
             try
             {
-                // Calculate the stride (bytes per row) of the image
                 int stride = bitmapData.Stride;
 
-                // Create byte array to hold pixel data
                 byte[] pixels = new byte[stride * bitmap.Height];
 
-                // Copy the pixel data from the image to the byte array
                 Marshal.Copy(bitmapData.Scan0, pixels, 0, pixels.Length);
 
-                // Iterate through each pixel in the image and update the histogram
                 for (int y = 0; y < bitmap.Height; y++)
                 {
                     for (int x = 0; x < bitmap.Width; x++)
                     {
                         int index = y * stride + x * 4;
 
-                        // Extract the intensity value (grayscale)
                         int intensity = (int)(pixels[index + 2] * 0.3 + pixels[index + 1] * 0.59 + pixels[index] * 0.11);
 
-                        // Update the histogram
                         histogram[intensity]++;
                     }
                 }
             }
             finally
             {
-                // Unlock the bits of the image
                 bitmap.UnlockBits(bitmapData);
             }
 
@@ -355,56 +430,44 @@ namespace BenigaImageProcessing1
         {
             Bitmap sepiaImage = new Bitmap(originalImage.Width, originalImage.Height);
 
-            // Lock the bits of the original and sepia images
             BitmapData originalData = ((Bitmap)originalImage).LockBits(new Rectangle(0, 0, originalImage.Width, originalImage.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             BitmapData sepiaData = sepiaImage.LockBits(new Rectangle(0, 0, sepiaImage.Width, sepiaImage.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 
-            // Get the stride (bytes per row) of the images
             int strideOriginal = originalData.Stride;
             int strideSepia = sepiaData.Stride;
 
-            // Create byte arrays to hold pixel data
             byte[] originalBytes = new byte[strideOriginal * originalImage.Height];
             byte[] sepiaBytes = new byte[strideSepia * sepiaImage.Height];
 
-            // Copy the pixel data from the original image to the byte array
             Marshal.Copy(originalData.Scan0, originalBytes, 0, originalBytes.Length);
 
-            // Iterate through each pixel in the image
             for (int y = 0; y < originalImage.Height; y++)
             {
                 for (int x = 0; x < originalImage.Width; x++)
                 {
-                    // Calculate the index of the current pixel
                     int index = y * strideOriginal + x * 4;
 
-                    // Get the color components of the current pixel
                     int pixelB = originalBytes[index];
                     int pixelG = originalBytes[index + 1];
                     int pixelR = originalBytes[index + 2];
 
-                    // Calculate the sepia tone values
                     int sepiaR = (int)(pixelR * 0.393 + pixelG * 0.769 + pixelB * 0.189);
                     int sepiaG = (int)(pixelR * 0.349 + pixelG * 0.686 + pixelB * 0.168);
                     int sepiaB = (int)(pixelR * 0.272 + pixelG * 0.534 + pixelB * 0.131);
 
-                    // Ensure values are in the valid range (0 to 255)
                     sepiaR = Clamp(sepiaR, 0, 255);
                     sepiaG = Clamp(sepiaG, 0, 255);
                     sepiaB = Clamp(sepiaB, 0, 255);
 
-                    // Set the sepia tone color to the new pixel
                     sepiaBytes[index] = (byte)sepiaB;
                     sepiaBytes[index + 1] = (byte)sepiaG;
                     sepiaBytes[index + 2] = (byte)sepiaR;
-                    sepiaBytes[index + 3] = originalBytes[index + 3]; // Alpha channel
+                    sepiaBytes[index + 3] = originalBytes[index + 3];
                 }
             }
 
-            // Copy the modified byte array back to the sepia image
             Marshal.Copy(sepiaBytes, 0, sepiaData.Scan0, sepiaBytes.Length);
 
-            // Unlock the bits of the images
             ((Bitmap)originalImage).UnlockBits(originalData);
             sepiaImage.UnlockBits(sepiaData);
 
@@ -417,5 +480,176 @@ namespace BenigaImageProcessing1
             return Math.Min(Math.Max(value, min), max);
         }
 
+        private void btnPart2_Click(object sender, EventArgs e)
+        {
+            if (isExpanded)
+            {
+                HidePart2();
+            }
+            else
+            {
+                ShowPart2();
+            }
+        }
+
+        private void btnLoadImg_Click(object sender, EventArgs e)
+        {
+            LoadImage(1);
+        }
+
+        private void pbColor_Click(object sender, EventArgs e)
+        {
+            pbColor = (PictureBox)sender;
+
+            ShowColorPicker();
+        }
+        private void ShowColorPicker()
+        {
+            ColorDialog colorDialog = new ColorDialog();
+
+            if (colorDialog.ShowDialog() == DialogResult.OK)
+            {
+                pbColor.BackColor = colorDialog.Color;
+
+                colorPick = pbColor.BackColor;
+            }
+        }
+
+        private void btnLoadBg_Click(object sender, EventArgs e)
+        {
+            LoadImage(2);
+        }
+
+        private void btnSubtract_Click(object sender, EventArgs e)
+        {
+            if (imageA != null && imageB != null)
+            {
+                if (imageA.Width == imageB.Width && imageA.Height == imageB.Height)
+                {
+                    resultImage = ImageSubtraction(imageA, imageB, colorPick);
+
+                    pbSubtractOutput.Image = resultImage;
+
+                    pbSubtractOutput.SizeMode = PictureBoxSizeMode.Zoom;
+                }
+                else
+                {
+                    MessageBox.Show("Images must have the same dimensions for subtraction.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please load both the original and background images before subtracting.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private Bitmap ImageSubtraction(Bitmap imageA, Bitmap imageB, Color colorToRemove)
+        {
+            Bitmap result = new Bitmap(imageA.Width, imageA.Height);
+
+            int greycolor = (colorToRemove.R + colorToRemove.G + colorToRemove.B) / 3;
+
+            BitmapData dataA = imageA.LockBits(new Rectangle(0, 0, imageA.Width, imageA.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            BitmapData dataB = imageB.LockBits(new Rectangle(0, 0, imageB.Width, imageB.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            BitmapData dataResult = result.LockBits(new Rectangle(0, 0, result.Width, result.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+            try
+            {
+                int strideA = dataA.Stride;
+                int strideB = dataB.Stride;
+                int strideResult = dataResult.Stride;
+
+                byte[] pixelsA = new byte[strideA * imageA.Height];
+                byte[] pixelsB = new byte[strideB * imageB.Height];
+                byte[] pixelsResult = new byte[strideResult * result.Height];
+
+                Marshal.Copy(dataA.Scan0, pixelsA, 0, pixelsA.Length);
+                Marshal.Copy(dataB.Scan0, pixelsB, 0, pixelsB.Length);
+
+                for (int y = 0; y < imageA.Height; y++)
+                {
+                    for (int x = 0; x < imageA.Width; x++)
+                    {
+                        int index = y * strideA + x * 4;
+
+                        int pixelAR = pixelsA[index + 2];
+                        int pixelAG = pixelsA[index + 1];
+                        int pixelAB = pixelsA[index];
+
+                        int pixelBR = pixelsB[index + 2];
+                        int pixelBG = pixelsB[index + 1];
+                        int pixelBB = pixelsB[index];
+
+                        bool withinThreshold = Math.Abs(pixelAR - colorToRemove.R) <= threshold &&
+                                               Math.Abs(pixelAG - colorToRemove.G) <= threshold &&
+                                               Math.Abs(pixelAB - colorToRemove.B) <= threshold;
+
+                        if (withinThreshold)
+                        {
+                            pixelsResult[index + 2] = (byte)pixelBR;
+                            pixelsResult[index + 1] = (byte)pixelBG;
+                            pixelsResult[index] = (byte)pixelBB;
+                            pixelsResult[index + 3] = 255;
+                        }
+                        else
+                        {
+                            pixelsResult[index + 2] = (byte)pixelAR;
+                            pixelsResult[index + 1] = (byte)pixelAG;
+                            pixelsResult[index] = (byte)pixelAB;
+                            pixelsResult[index + 3] = 255;
+                        }
+                    }
+                }
+
+                Marshal.Copy(pixelsResult, 0, dataResult.Scan0, pixelsResult.Length);
+            }
+            finally
+            {
+                imageA.UnlockBits(dataA);
+                imageB.UnlockBits(dataB);
+                result.UnlockBits(dataResult);
+            }
+
+            return result;
+        }
+
+        private void tbThreshold_TextChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(tbThreshold.Text))
+            {
+                if (int.TryParse(tbThreshold.Text, out int value) && value <= 255)
+                {
+                    threshold = value;
+                }
+                else
+                {
+                    MessageBox.Show("Invalid threshold value or value exceeds 255, try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    tbThreshold.Text = "";
+                    threshold = 0;
+                }
+            }
+            else
+            {
+                threshold = 0;
+            }
+        }
+
+        private void tbThreshold_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!char.IsDigit(e.KeyChar) && e.KeyChar != '\b')
+            {
+                if (tbThreshold.SelectionLength > 0)
+                {
+                    tbThreshold.SelectedText = e.KeyChar.ToString();
+                    e.Handled = true;
+                }
+                e.Handled = true;
+            }
+
+            if (int.TryParse(tbThreshold.Text + e.KeyChar, out int value) && value > 255)
+            {
+                e.Handled = true;
+            }
+        }
     }
 }

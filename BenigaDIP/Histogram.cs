@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms.DataVisualization.Charting;
 using System.Windows.Forms;
 
-namespace BenigaImageProcessing1
+namespace BenigaDIP
 {
     public partial class HistogramForm : Form
     {
