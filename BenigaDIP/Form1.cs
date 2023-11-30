@@ -9,18 +9,21 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using AForge.Video.DirectShow;
+using AForge.Video;
 
 namespace BenigaDIP
 {
     public partial class Form1 : Form
     {
-        private ToolStripMenuItem selectedManipulateMenuItem;
+        private ToolStripMenuItem selectedManipulateMenuItem, selectedWebcamMenuItem;
         private PictureBox sourcePictureBox;
         private HistogramForm histogramForm;
         private bool isExpanded;
         private Color colorPick;
         private Bitmap imageA, imageB, resultImage;
         private int threshold;
+        private VideoCaptureDevice videoSource;
 
         public Form1()
         {
@@ -32,24 +35,39 @@ namespace BenigaDIP
             threshold = int.Parse(tbThreshold.Text);
         }
 
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            StopWebcam();
+            base.OnFormClosing(e);
+        }
+
         private void InitializeMenu()
         {
             selectedManipulateMenuItem = menuManipulateOriginal;
             selectedManipulateMenuItem.Checked = true;
 
+            selectedWebcamMenuItem = menuWebcamOff;
+            selectedWebcamMenuItem.Checked = true;
+
             menuManipulateOutput.Click += menuManipulateItem_Click;
             menuManipulateOriginal.Click += menuManipulateItem_Click;
+
+            menuWebcamOn.Click += menuWebcamItem_Click;
+            menuWebcamOff.Click += menuWebcamItem_Click;
         }
 
         private void HidePart2()
         {
             isExpanded = false;
             this.Size = new System.Drawing.Size(845, 510);
+            switchMenuWebcamToOff();
+            StopWebcam();
             ClearPictureBoxes();
 
             menuManipulate.Visible = true;
             menuControls.Visible = true;
             menuFileLoad.Visible = true;
+            menuWebcam.Visible = false;
 
             btnPart2.Text = ">>";
             btnPart2.Location = new Point(768, 441);
@@ -71,11 +89,13 @@ namespace BenigaDIP
         {
             isExpanded = true;
             this.Size = new System.Drawing.Size(1250, 510);
+            switchMenuWebcamToOff();
             ClearPictureBoxes();
 
             menuManipulate.Visible = false;
             menuControls.Visible = false;
             menuFileLoad.Visible = false;
+            menuWebcam.Visible = true;
 
             btnPart2.Text = "<<";
             btnPart2.Location = new Point(1174, 441);
@@ -104,6 +124,34 @@ namespace BenigaDIP
             }
 
             selectedManipulateMenuItem.Checked = true;
+        }
+
+        private void menuWebcamItem_Click(object sender, EventArgs e)
+        {
+            var menuItem = (ToolStripMenuItem)sender;
+
+            if (selectedWebcamMenuItem != menuItem)
+            {
+                selectedWebcamMenuItem.Checked = false;
+                selectedWebcamMenuItem = menuItem;
+            }
+
+            selectedWebcamMenuItem.Checked = true;
+
+            if (selectedWebcamMenuItem == menuWebcamOn)
+            {
+                StartWebcam();
+            }
+            else
+            {
+                StopWebcam();
+            }
+        }
+
+        private void switchMenuWebcamToOff()
+        {
+            menuWebcamOn.Checked = false;
+            menuWebcamOff.Checked = true;
         }
 
         private void menuFileNew_Click(object sender, EventArgs e)
@@ -649,6 +697,114 @@ namespace BenigaDIP
             if (int.TryParse(tbThreshold.Text + e.KeyChar, out int value) && value > 255)
             {
                 e.Handled = true;
+            }
+        }
+
+        private void StartWebcam()
+        {
+            StopWebcam();
+            btnLoadImg.Enabled = false;
+            btnSubtract.Enabled = false;
+
+            FilterInfoCollection videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
+
+            if (videoDevices.Count > 0)
+            {
+                using (var deviceDialog = new VideoCaptureDeviceForm())
+                {
+                    if (deviceDialog.ShowDialog(this) == DialogResult.OK)
+                    {
+                        videoSource = new VideoCaptureDevice(deviceDialog.VideoDeviceMoniker);
+                        videoSource.NewFrame += VideoSource_NewFrame;
+                        videoSource.Start();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Webcam device selection canceled.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        switchMenuWebcamToOff();
+                        btnLoadImg.Enabled = true;
+                        btnSubtract.Enabled = true;
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("No video devices found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                switchMenuWebcamToOff();
+                btnLoadImg.Enabled = true;
+                btnSubtract.Enabled = true;
+            }
+        }
+
+        private async void StopWebcam()
+        {
+            btnLoadImg.Enabled = true;
+            btnSubtract.Enabled = true;
+
+            if (videoSource != null && videoSource.IsRunning)
+            {
+                await Task.Run(() =>
+                {
+                    videoSource.SignalToStop();
+                    videoSource.WaitForStop();
+                });
+
+                pbOriginal.Image = null;
+            }
+        }
+
+        private void VideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
+        {
+            Bitmap resizedFrame = (Bitmap)eventArgs.Frame.Clone();
+            // Display original frame in pbOriginal
+            if (pbOriginal.InvokeRequired)
+            {
+                pbOriginal.Invoke(new Action(() =>
+                {
+                    pbOriginal.Image?.Dispose();  // Dispose the previous image to avoid memory leaks
+                    pbOriginal.Image = (Bitmap)resizedFrame.Clone();
+                    pbOriginal.SizeMode = PictureBoxSizeMode.Zoom;
+                }));
+            }
+            else
+            {
+                pbOriginal.Image?.Dispose();  // Dispose the previous image to avoid memory leaks
+                pbOriginal.Image = (Bitmap)resizedFrame.Clone();
+                pbOriginal.SizeMode = PictureBoxSizeMode.Zoom;
+            }
+
+            if (imageB != null)
+            {
+                if (resizedFrame.Width == imageB.Width && resizedFrame.Height == imageB.Height)
+                {
+                    // Perform live subtraction
+                    resultImage = ImageSubtraction(resizedFrame, imageB, colorPick);
+
+                    // Display the result in pbSubtractionOutput
+                    if (pbSubtractOutput.InvokeRequired)
+                    {
+                        pbSubtractOutput.Invoke(new Action(() =>
+                        {
+                            pbSubtractOutput.Image?.Dispose();  // Dispose the previous image to avoid memory leaks
+                            pbSubtractOutput.Image = (Bitmap)resultImage.Clone();
+                            pbSubtractOutput.SizeMode = PictureBoxSizeMode.Zoom;
+                        }));
+                    }
+                    else
+                    {
+                        pbSubtractOutput.Image?.Dispose();  // Dispose the previous image to avoid memory leaks
+                        pbSubtractOutput.Image = (Bitmap)resultImage.Clone();
+                        pbSubtractOutput.SizeMode = PictureBoxSizeMode.Zoom;
+                    }
+                }
+                else
+                {
+                    int height = resizedFrame.Height;
+                    int width = resizedFrame.Width;
+                    MessageBox.Show("Background image must be " + width + "x" + height + " to continue.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    imageB = null;
+                    pbOutput.Image = null;
+                }
             }
         }
     }

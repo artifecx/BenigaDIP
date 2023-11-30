@@ -53,6 +53,9 @@
             this.lblColorPicker = new System.Windows.Forms.Label();
             this.lblThreshold = new System.Windows.Forms.Label();
             this.tbThreshold = new System.Windows.Forms.TextBox();
+            this.menuWebcam = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuWebcamOn = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuWebcamOff = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.pbOriginal)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pbOutput)).BeginInit();
             this.menuStrip.SuspendLayout();
@@ -83,7 +86,8 @@
             this.menuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.menuFile,
             this.menuManipulate,
-            this.menuControls});
+            this.menuControls,
+            this.menuWebcam});
             this.menuStrip.Location = new System.Drawing.Point(0, 0);
             this.menuStrip.Name = "menuStrip";
             this.menuStrip.Size = new System.Drawing.Size(1234, 24);
@@ -157,35 +161,35 @@
             // menuControlsCopy
             // 
             this.menuControlsCopy.Name = "menuControlsCopy";
-            this.menuControlsCopy.Size = new System.Drawing.Size(154, 22);
+            this.menuControlsCopy.Size = new System.Drawing.Size(180, 22);
             this.menuControlsCopy.Text = "Basic Copy";
             this.menuControlsCopy.Click += new System.EventHandler(this.menuControlsCopy_Click);
             // 
             // menuControlsGreyscale
             // 
             this.menuControlsGreyscale.Name = "menuControlsGreyscale";
-            this.menuControlsGreyscale.Size = new System.Drawing.Size(154, 22);
+            this.menuControlsGreyscale.Size = new System.Drawing.Size(180, 22);
             this.menuControlsGreyscale.Text = "Greyscale";
             this.menuControlsGreyscale.Click += new System.EventHandler(this.menuControlsGreyscale_Click);
             // 
             // menuControlsInversion
             // 
             this.menuControlsInversion.Name = "menuControlsInversion";
-            this.menuControlsInversion.Size = new System.Drawing.Size(154, 22);
+            this.menuControlsInversion.Size = new System.Drawing.Size(180, 22);
             this.menuControlsInversion.Text = "Color Inversion";
             this.menuControlsInversion.Click += new System.EventHandler(this.menuControlsInversion_Click);
             // 
             // menuControlsHistogram
             // 
             this.menuControlsHistogram.Name = "menuControlsHistogram";
-            this.menuControlsHistogram.Size = new System.Drawing.Size(154, 22);
+            this.menuControlsHistogram.Size = new System.Drawing.Size(180, 22);
             this.menuControlsHistogram.Text = "Histogram";
             this.menuControlsHistogram.Click += new System.EventHandler(this.menuControlsHistogram_Click);
             // 
             // menuControlsSepia
             // 
             this.menuControlsSepia.Name = "menuControlsSepia";
-            this.menuControlsSepia.Size = new System.Drawing.Size(154, 22);
+            this.menuControlsSepia.Size = new System.Drawing.Size(180, 22);
             this.menuControlsSepia.Text = "Sepia";
             this.menuControlsSepia.Click += new System.EventHandler(this.menuControlsSepia_Click);
             // 
@@ -275,6 +279,27 @@
             this.tbThreshold.TextChanged += new System.EventHandler(this.tbThreshold_TextChanged);
             this.tbThreshold.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.tbThreshold_KeyPress);
             // 
+            // menuWebcam
+            // 
+            this.menuWebcam.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuWebcamOn,
+            this.menuWebcamOff});
+            this.menuWebcam.Name = "menuWebcam";
+            this.menuWebcam.Size = new System.Drawing.Size(66, 20);
+            this.menuWebcam.Text = "Webcam";
+            // 
+            // menuWebcamOn
+            // 
+            this.menuWebcamOn.Name = "menuWebcamOn";
+            this.menuWebcamOn.Size = new System.Drawing.Size(180, 22);
+            this.menuWebcamOn.Text = "On";
+            // 
+            // menuWebcamOff
+            // 
+            this.menuWebcamOff.Name = "menuWebcamOff";
+            this.menuWebcamOff.Size = new System.Drawing.Size(180, 22);
+            this.menuWebcamOff.Text = "Off";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -333,6 +358,9 @@
         private System.Windows.Forms.Label lblColorPicker;
         private System.Windows.Forms.Label lblThreshold;
         private System.Windows.Forms.TextBox tbThreshold;
+        private System.Windows.Forms.ToolStripMenuItem menuWebcam;
+        private System.Windows.Forms.ToolStripMenuItem menuWebcamOn;
+        private System.Windows.Forms.ToolStripMenuItem menuWebcamOff;
     }
 }
 
