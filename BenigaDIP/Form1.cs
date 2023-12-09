@@ -751,6 +751,9 @@ namespace BenigaDIP
 
                 pbOriginal.Image = null;
             }
+
+            pbSubtractOutput.Image = null;
+            pbOutput.Image = null;
         }
 
         private void VideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
